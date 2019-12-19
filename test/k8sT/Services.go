@@ -207,6 +207,11 @@ var _ = Describe("K8sServicesTest", func() {
 			testHTTPRequest(testDSClient, url)
 		})
 
+		getURL := func(host string, port int32) string {
+			return fmt.Sprintf("http://%s",
+				net.JoinHostPort(host, fmt.Sprintf("%d", port)))
+		}
+
 		doRequests := func(url string, count int, fromPod string) {
 			By("Making %d HTTP requests from %s to %q", count, fromPod, url)
 			for i := 1; i <= count; i++ {
@@ -225,11 +230,6 @@ var _ = Describe("K8sServicesTest", func() {
 				ExpectWithOffset(1, res).ShouldNot(helpers.CMDSuccess(),
 					"%s host unexpectedly connected to service %q, it should fail", fromPod, url)
 			}
-		}
-
-		getURL := func(host string, port int32) string {
-			return fmt.Sprintf("http://%s",
-				net.JoinHostPort(host, fmt.Sprintf("%d", port)))
 		}
 
 		doRequestsFromOutsideClient := func(url string, count int, checkSourceIP bool) {
@@ -417,6 +417,26 @@ var _ = Describe("K8sServicesTest", func() {
 				It("Tests NodePort with externalTrafficPolicy=Local", func() {
 					testExternalTrafficPolicyLocal()
 				})
+			})
+
+			It("Tests with direct routing and DSR", func() {
+				deleteCiliumDS(kubectl)
+				DeployCiliumOptionsAndDNS(kubectl, []string{
+					"--set global.nodePort.enabled=true",
+					"--set global.nodePort.device=" + nativeDev,
+					"--set global.nodePort.dsr=true",
+					"--set global.tunnel=disabled",
+					"--set global.autoDirectNodeRoutes=true",
+					"--set global.ipv6.enabled=false",
+				})
+
+				var data v1.Service
+				err := kubectl.Get(helpers.DefaultNamespace, "service test-nodeport").Unmarshal(&data)
+				Expect(err).Should(BeNil(), "Can not retrieve service")
+				url := getURL(helpers.K8s1Ip, data.Spec.Ports[0].NodePort)
+				doRequestsFromOutsideClient(url, 10, true)
+				url = getURL(helpers.K8s2Ip, data.Spec.Ports[0].NodePort)
+				doRequestsFromOutsideClient(url, 10, true)
 			})
 
 			Context("Tests with MetalLB", func() {
