@@ -314,15 +314,15 @@ var _ = Describe("K8sServicesTest", func() {
 			url := getURL(helpers.K8s1Ip, data.Spec.Ports[0].NodePort)
 			doRequestsFromOutsideClient(url, count, true)
 
-			// Checks that requests to k8s1 succeed, while requests to k8s2 are dropped
-			err = kubectl.Get(helpers.DefaultNamespace, "service test-nodeport-local-k8s1").Unmarshal(&data)
+			// Checks that requests to k8s2 succeed, while requests to k8s1 are dropped
+			err = kubectl.Get(helpers.DefaultNamespace, "service test-nodeport-local-k8s2").Unmarshal(&data)
 			Expect(err).Should(BeNil(), "Can not retrieve service")
 
-			url = getURL(helpers.K8s1Ip, data.Spec.Ports[0].NodePort)
+			url = getURL(helpers.K8s2Ip, data.Spec.Ports[0].NodePort)
 			doRequests(url, count, helpers.K8s1)
 			doRequests(url, count, helpers.K8s2)
 
-			url = getURL(helpers.K8s2Ip, data.Spec.Ports[0].NodePort)
+			url = getURL(helpers.K8s1Ip, data.Spec.Ports[0].NodePort)
 			failRequests(url, count, helpers.K8s1)
 			failRequests(url, count, helpers.K8s2)
 		}
@@ -434,8 +434,6 @@ var _ = Describe("K8sServicesTest", func() {
 				err := kubectl.Get(helpers.DefaultNamespace, "service test-nodeport").Unmarshal(&data)
 				Expect(err).Should(BeNil(), "Can not retrieve service")
 				url := getURL(helpers.K8s1Ip, data.Spec.Ports[0].NodePort)
-				doRequestsFromOutsideClient(url, 10, true)
-				url = getURL(helpers.K8s2Ip, data.Spec.Ports[0].NodePort)
 				doRequestsFromOutsideClient(url, 10, true)
 			})
 
